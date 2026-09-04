@@ -1,0 +1,34 @@
+# Environment and secrets
+.env
+.env.*
+!.env.example
+
+# Python
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+coverage.xml
+htmlcov/
+
+# Node/Vite
+node_modules/
+frontend/dist/
+dist/
+
+# Vercel
+.vercel/
+
+# Local Supabase state
+supabase/.temp/
+supabase/.branches/
+
+# OS and editors
+.DS_Store
+.idea/
+.vscode/
+
+# Temporary artifacts
+tmp/
