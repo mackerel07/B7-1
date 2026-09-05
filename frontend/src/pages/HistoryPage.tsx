@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import { AppShell } from "../components/layout/AppShell";
 import { ErrorBanner } from "../components/chat/ErrorBanner";
 import { useAuth } from "../contexts/AuthContext";
@@ -53,7 +54,7 @@ export default function HistoryPage() {
         {error ? <ErrorBanner error={error} onRetry={() => void loadHistory()} /> : null}
 
         {loading ? (
-          <div className="panel history-empty" aria-busy="true">
+          <div className="panel history-empty" aria-busy="true" role="status">
             <p>기록을 불러오는 중입니다…</p>
           </div>
         ) : null}
@@ -62,11 +63,14 @@ export default function HistoryPage() {
           <div className="panel history-empty" role="status">
             <h2>아직 기록이 없습니다</h2>
             <p className="lede">채팅에서 질문을 보내면 여기에 쌓입니다.</p>
+            <Link className="btn btn--primary" to="/chat">
+              채팅으로 이동
+            </Link>
           </div>
         ) : null}
 
         {!loading && items.length > 0 ? (
-          <ul className="history-list">
+          <ul className="history-list" aria-label="대화 기록 목록">
             {items.map((item) => (
               <li key={item.id} className="panel history-card">
                 <time dateTime={item.created_at}>{formatTimestamp(item.created_at)}</time>

@@ -81,9 +81,11 @@ export default function SignupPage() {
               onChange={(event) => setEmail(event.target.value)}
               disabled={submitting}
               required
+              aria-invalid={Boolean(fieldErrors.email)}
+              aria-describedby={fieldErrors.email ? "signup-email-error" : undefined}
             />
             {fieldErrors.email ? (
-              <p className="field__error" role="alert">
+              <p id="signup-email-error" className="field__error" role="alert">
                 {fieldErrors.email}
               </p>
             ) : null}
@@ -103,13 +105,19 @@ export default function SignupPage() {
               disabled={submitting}
               required
               minLength={6}
+              aria-invalid={Boolean(fieldErrors.password)}
+              aria-describedby={
+                fieldErrors.password ? "signup-password-error" : "signup-password-hint"
+              }
             />
             {fieldErrors.password ? (
-              <p className="field__error" role="alert">
+              <p id="signup-password-error" className="field__error" role="alert">
                 {fieldErrors.password}
               </p>
             ) : (
-              <p className="field__hint">6자 이상 입력해 주세요.</p>
+              <p id="signup-password-hint" className="field__hint">
+                6자 이상 입력해 주세요.
+              </p>
             )}
           </div>
 
@@ -126,9 +134,11 @@ export default function SignupPage() {
               onChange={(event) => setConfirm(event.target.value)}
               disabled={submitting}
               required
+              aria-invalid={Boolean(fieldErrors.confirm)}
+              aria-describedby={fieldErrors.confirm ? "signup-confirm-error" : undefined}
             />
             {fieldErrors.confirm ? (
-              <p className="field__error" role="alert">
+              <p id="signup-confirm-error" className="field__error" role="alert">
                 {fieldErrors.confirm}
               </p>
             ) : null}

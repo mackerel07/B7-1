@@ -16,6 +16,9 @@ export function AppShell({
 }: AppShellProps) {
   return (
     <div className="shell">
+      <a className="skip-link" href="#main-content">
+        본문으로 건너뛰기
+      </a>
       <header className="site-header">
         <div className="site-header__inner">
           <Link to={email ? "/chat" : "/login"} className="brand" aria-label="Context 홈">
@@ -25,7 +28,7 @@ export function AppShell({
 
           {showNav && email ? (
             <nav className="site-nav" aria-label="주요 메뉴">
-              <NavLink to="/chat" className={navClass}>
+              <NavLink to="/chat" className={navClass} end={false}>
                 채팅
               </NavLink>
               <NavLink to="/history" className={navClass}>
@@ -33,6 +36,7 @@ export function AppShell({
               </NavLink>
               <div className="site-nav__account">
                 <span className="site-nav__email" title={email}>
+                  <span className="visually-hidden">로그인 계정: </span>
                   {email}
                 </span>
                 {onLogout ? (
@@ -45,7 +49,7 @@ export function AppShell({
           ) : null}
         </div>
       </header>
-      {children}
+      <div id="main-content">{children}</div>
     </div>
   );
 }
