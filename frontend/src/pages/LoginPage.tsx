@@ -77,9 +77,11 @@ export default function LoginPage() {
               onChange={(event) => setEmail(event.target.value)}
               disabled={submitting}
               required
+              aria-invalid={Boolean(fieldErrors.email)}
+              aria-describedby={fieldErrors.email ? "login-email-error" : undefined}
             />
             {fieldErrors.email ? (
-              <p className="field__error" role="alert">
+              <p id="login-email-error" className="field__error" role="alert">
                 {fieldErrors.email}
               </p>
             ) : null}
@@ -98,9 +100,11 @@ export default function LoginPage() {
               onChange={(event) => setPassword(event.target.value)}
               disabled={submitting}
               required
+              aria-invalid={Boolean(fieldErrors.password)}
+              aria-describedby={fieldErrors.password ? "login-password-error" : undefined}
             />
             {fieldErrors.password ? (
-              <p className="field__error" role="alert">
+              <p id="login-password-error" className="field__error" role="alert">
                 {fieldErrors.password}
               </p>
             ) : null}

@@ -44,9 +44,14 @@ export function ChatInput({ disabled = false, onSubmit }: ChatInputProps) {
         placeholder="질문을 입력하세요 (최대 2,000자)"
         disabled={disabled}
         maxLength={2000}
+        aria-invalid={Boolean(error)}
+        aria-describedby={error ? "chat-question-error chat-question-hint" : "chat-question-hint"}
       />
       <div className="chat-input__footer">
-        <p className={`field__hint ${remaining < 0 ? "field__error" : ""}`}>
+        <p
+          id="chat-question-hint"
+          className={`field__hint ${remaining < 0 ? "field__error" : ""}`}
+        >
           {remaining.toLocaleString("ko-KR")}자 남음
         </p>
         <button className="btn btn--primary" type="submit" disabled={disabled}>
@@ -54,7 +59,7 @@ export function ChatInput({ disabled = false, onSubmit }: ChatInputProps) {
         </button>
       </div>
       {error ? (
-        <p className="field__error" role="alert">
+        <p id="chat-question-error" className="field__error" role="alert">
           {error}
         </p>
       ) : null}

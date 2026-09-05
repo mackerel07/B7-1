@@ -97,6 +97,10 @@
   font-weight: 600;
   cursor: pointer;
   transition: transform 160ms ease, background 160ms ease, border-color 160ms ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
 }
 
 .btn:hover:not(:disabled) {
@@ -239,6 +243,7 @@
   .site-nav {
     width: 100%;
     justify-content: flex-start;
+    gap: 0.5rem 0.85rem;
   }
 
   .site-nav__account {
@@ -249,6 +254,57 @@
 
   .site-nav__email {
     max-width: 55vw;
+  }
+
+  .auth-hero {
+    padding-top: 1.5rem;
+    gap: 1.1rem;
+  }
+
+  .auth-hero__form {
+    width: 100%;
+    padding: 1.1rem;
+  }
+
+  .chat-page__stage {
+    max-height: none;
+    min-height: 42vh;
+  }
+
+  .chat-input {
+    position: static;
+  }
+
+  .chat-input__footer {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .chat-input__footer .btn {
+    width: 100%;
+  }
+
+  .chat-error {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .history-empty .btn {
+    justify-self: start;
+  }
+}
+
+@media (max-width: 480px) {
+  .page {
+    width: min(1080px, calc(100% - 1.25rem));
+  }
+
+  h1 {
+    font-size: clamp(1.85rem, 8vw, 2.4rem);
+  }
+
+  .message {
+    padding: 0.75rem 0.85rem;
   }
 }
 
@@ -408,16 +464,4 @@
   padding: 1.4rem;
   display: grid;
   gap: 0.5rem;
-}
-
-@media (max-width: 720px) {
-  .chat-page__stage {
-    max-height: none;
-    min-height: 42vh;
-  }
-
-  .chat-error {
-    flex-direction: column;
-    align-items: stretch;
-  }
 }
