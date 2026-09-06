@@ -44,7 +44,15 @@ class GeminiService:
         client = genai.Client(
             api_key=self._settings.gemini_api_key,
             http_options=types.HttpOptions(
-                timeout=int(self._settings.gemini_timeout_seconds * 1000)
+                timeout=int(self._settings.gemini_timeout_seconds * 1000),
+                retry_options=types.HttpRetryOptions(
+                    attempts=3,
+                    initial_delay=0.5,
+                    max_delay=2.0,
+                    exp_base=2,
+                    jitter=0.5,
+                    http_status_codes=[500, 502, 503, 504],
+                ),
             ),
         )
         async_client = client.aio
@@ -58,7 +66,6 @@ class GeminiService:
                             "You are a helpful assistant. Answer in the language used by the user. "
                             "Use prior messages only as conversational context."
                         ),
-                        temperature=0.5,
                     ),
                 )
         finally:
@@ -68,4 +75,3 @@ class GeminiService:
         if not answer:
             raise RuntimeError("Gemini returned an empty response")
         return answer
-
