@@ -89,7 +89,11 @@ export default function ChatPage() {
           />
         ) : null}
 
-        <ChatInput disabled={pending || !accessToken} onSubmit={sendQuestion} />
+        <ChatInput
+          disabled={!accessToken}
+          pending={pending}
+          onSubmit={sendQuestion}
+        />
       </main>
     </AppShell>
   );

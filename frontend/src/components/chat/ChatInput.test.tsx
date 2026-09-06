@@ -39,9 +39,15 @@ describe("ChatInput", () => {
     expect(screen.getByText("1,994자 남음")).toBeInTheDocument();
   });
 
-  it("disabled면 전송 버튼이 비활성화된다", () => {
+  it("disabled면 전송 중이 아니므로 라벨은 그대로 두고 비활성화만 한다", () => {
     render(<ChatInput disabled onSubmit={vi.fn()} />);
+    expect(screen.getByRole("button", { name: "전송" })).toBeDisabled();
+  });
+
+  it("pending이면 전송 중임을 표시하고 입력을 잠근다", () => {
+    render(<ChatInput pending onSubmit={vi.fn()} />);
     expect(screen.getByRole("button", { name: "전송 중…" })).toBeDisabled();
+    expect(screen.getByLabelText("질문 입력")).toBeDisabled();
   });
 });
 
