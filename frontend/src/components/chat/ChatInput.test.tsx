@@ -30,6 +30,15 @@ describe("ChatInput", () => {
     expect(textarea).toHaveValue("");
   });
 
+  it("남은 글자수를 공백 포함 입력 길이 기준으로 표시한다", async () => {
+    const user = userEvent.setup();
+    render(<ChatInput onSubmit={vi.fn()} />);
+
+    await user.type(screen.getByLabelText("질문 입력"), "  안녕  ");
+
+    expect(screen.getByText("1,994자 남음")).toBeInTheDocument();
+  });
+
   it("disabled면 전송 버튼이 비활성화된다", () => {
     render(<ChatInput disabled onSubmit={vi.fn()} />);
     expect(screen.getByRole("button", { name: "전송 중…" })).toBeDisabled();

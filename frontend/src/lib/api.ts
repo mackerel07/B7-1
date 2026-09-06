@@ -42,7 +42,7 @@ export class ApiError extends Error {
   }
 }
 
-const QUESTION_MAX = 2000;
+export const QUESTION_MAX = 2000;
 
 export function validateQuestion(question: string): string | null {
   const trimmed = question.trim();

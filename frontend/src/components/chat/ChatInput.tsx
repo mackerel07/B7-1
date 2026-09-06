@@ -1,6 +1,6 @@
 import type { FormEvent } from "react";
 import { useState } from "react";
-import { validateQuestion } from "../../lib/api";
+import { QUESTION_MAX, validateQuestion } from "../../lib/api";
 
 type ChatInputProps = {
   disabled?: boolean;
@@ -25,7 +25,7 @@ export function ChatInput({ disabled = false, onSubmit }: ChatInputProps) {
     await onSubmit(question);
   }
 
-  const remaining = 2000 - value.trim().length;
+  const remaining = QUESTION_MAX - value.length;
 
   return (
     <form className="chat-input panel" onSubmit={handleSubmit} noValidate>
@@ -41,17 +41,14 @@ export function ChatInput({ disabled = false, onSubmit }: ChatInputProps) {
           setValue(event.target.value);
           if (error) setError(null);
         }}
-        placeholder="질문을 입력하세요 (최대 2,000자)"
+        placeholder={`질문을 입력하세요 (최대 ${QUESTION_MAX.toLocaleString("ko-KR")}자)`}
         disabled={disabled}
-        maxLength={2000}
+        maxLength={QUESTION_MAX}
         aria-invalid={Boolean(error)}
         aria-describedby={error ? "chat-question-error chat-question-hint" : "chat-question-hint"}
       />
       <div className="chat-input__footer">
-        <p
-          id="chat-question-hint"
-          className={`field__hint ${remaining < 0 ? "field__error" : ""}`}
-        >
+        <p id="chat-question-hint" className="field__hint">
           {remaining.toLocaleString("ko-KR")}자 남음
         </p>
         <button className="btn btn--primary" type="submit" disabled={disabled}>
