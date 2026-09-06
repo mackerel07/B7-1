@@ -15,7 +15,7 @@
 | 인증 | Supabase Auth (email/password) | 회원가입, 로그인, 세션/JWT를 직접 구현하지 않고 요구사항 충족 |
 | 데이터베이스 | Supabase Postgres | Vercel의 비영속 파일시스템과 호환되며 사용자별 로그 조회, RLS, 원격 검증에 적합 |
 | DB 접근 | Supabase Data API(PostgREST) + 사용자 JWT + RLS | 서버리스 TCP 연결 문제를 줄이고 DB에서도 사용자별 격리 강제 |
-| AI 연동 | 단일 provider adapter + 공식 API/SDK | 공급자 변경 범위를 한 파일로 제한하고 키/모델/타임아웃을 환경 변수화 |
+| AI 연동 | Google Gemini API + `google-genai` | 공식 Python SDK를 서버에서 호출하고 키/모델/타임아웃을 환경 변수화 |
 | HTTP | `httpx.AsyncClient` | Supabase Auth/Data API와 AI API를 비동기로 호출하고 명시적 timeout 적용 |
 | 설정 | `pydantic-settings` + `.env`/Vercel env | 누락된 설정을 시작 시 검증하고 민감정보를 코드에서 분리 |
 | 테스트 | `pytest`, `pytest-asyncio`, `respx` + 프런트 테스트 + 배포 smoke test | 성공, 인증, 타임아웃, DB 실패를 재현 가능하게 검증 |
@@ -142,7 +142,7 @@ Vite 결과물은 FastAPI의 정적 frontend 지원으로 같은 Vercel 프로�
 - `service_role`/secret key는 브라우저에 절대 전달하지 않는다. MVP 런타임에서는 가급적 사용하지 않는다.
 - `user_metadata`를 권한 판정에 사용하지 않는다.
 - 모든 exposed table에 RLS를 켜고 `auth.uid() = user_id`를 강제한다.
-- 이메일 확인을 사용할 경우 redirect URL과 SMTP를 실제 배포 주소 기준으로 검증한다. 1~2일 평가용 MVP에서는 가입 직후 바로 로그인할 수 있도록 email confirmation을 끄고 그 설정을 README에 명시하는 편이 안정적이다.
+- 이메일 확인을 사용할 경우 redirect URL과 SMTP를 실제 배포 주소 기준으로 검증한다. 단기 평가용 MVP에서는 가입 직후 바로 로그인할 수 있도록 email confirmation을 끄고 그 설정을 README에 명시하는 편이 안정적이다.
 
 2026년 신규 Supabase 프로젝트는 새 테이블의 Data API 노출이 기본으로 꺼질 수 있다. 마이그레이션에 `authenticated` 역할의 명시적 `GRANT`와 RLS 정책을 함께 기록한다.
 
@@ -235,22 +235,22 @@ MVP는 평가와 문맥 구성이 쉬운 단일 테이블을 사용한다.
 |---|---|---|---|---|
 | R1 | 로그인 사용자의 웹 질문 입력 | React 질문 폼, 보호 상태 | E2E 화면 | B |
 | R2 | 서버의 AI API 호출 | FastAPI AI adapter | mock 단위 테스트 + 실제 smoke | A |
-| R3 | 같은 흐름에서 응답 표시 | chat message list | 브라우저 E2E | B |
+| R3 | 같은 흐름에서 응답 표시 | chat message list | 브라우저 E2E | C |
 | R4 | 외부 접속 URL | Vercel Production | 외부/시크릿 창 smoke | A |
 | R5 | 회원가입/로그인 | Supabase Auth | 가입/로그인/로그아웃 E2E | B |
 | R6 | 인증별 접근 구분 | UI guard + FastAPI JWT 검증 | 비로그인 API 401 | B/C |
 | R7 | 서버에서 AI key 보호 | server-only env | bundle/repo secret scan | A |
-| R8 | 최소 문맥 유지 | 최근 5개 성공 Q/A | 후속 질문 테스트 | A/C |
-| R9 | 질문/응답 누적 저장 | `chat_logs` | API + SQL | C |
-| R10 | 최소 추적 필드 | user/time/question/answer 포함 | migration/ERD | C |
-| R11 | 사용자 기준 조회 | `GET /api/me/chats` | 두 사용자 격리 테스트 | C/B |
+| R8 | 최소 문맥 유지 | 최근 5개 성공 Q/A | 후속 질문 테스트 | A |
+| R9 | 질문/응답 누적 저장 | `chat_logs` | API + SQL | A |
+| R10 | 최소 추적 필드 | user/time/question/answer 포함 | migration/ERD | A |
+| R11 | 사용자 기준 조회 | `GET /api/me/chats` | 두 사용자 격리 테스트 | A/B |
 | R12 | 4종 서버 이벤트 로그 | 구조화 로깅 | Vercel Runtime Logs 캡처 | A |
 | R13 | AI timeout/실패 복구 | 25초 timeout, 오류 매핑 | respx 실패 테스트 | A |
-| R14 | 사용자 오류 안내 | 공통 오류 UI/상태코드 | E2E | A/B |
-| R15 | 입력 검증 | 빈 값 + 길이 제한 | 프런트/서버 테스트 | A/B |
+| R14 | 사용자 오류 안내 | 공통 오류 UI/상태코드 | E2E | A/C |
+| R15 | 입력 검증 | 빈 값 + 길이 제한 | 프런트/서버 테스트 | A/C |
 | R16 | 배포/환경 문서 | README | 새 환경 재현 점검 | A |
 | R17 | branch/feature/PR 흔적 | GitHub flow | PR 목록/graph | 전원 |
-| R18 | 팀원별 10+ 유의미한 커밋 | 14/12/12 목표 | `git shortlog` 감사 | 전원 |
+| R18 | 팀원별 10+ 유의미한 커밋 | 14/11/11 목표 | `git shortlog` 감사 | 전원 |
 | R19 | 역할/작업 요약 | docs/team.md | Git/PR과 대조 | 전원 |
 | R20 | 민감정보 관리 | `.env.example`, `.gitignore` | `git ls-files .env` | A |
 | R21 | GitHub/README/API/DB 산출물 | 문서 패키지 | 최종 체크리스트 | 전원 |
@@ -273,10 +273,9 @@ README에는 반드시 아래 내용을 포함한다.
 |---|---|---|
 | `SUPABASE_URL` | 공개 가능 | Supabase 프로젝트 URL |
 | `SUPABASE_PUBLISHABLE_KEY` | 공개 가능 | Auth/Data API의 낮은 권한 키; RLS 필수 |
-| `AI_API_KEY` | 비공개 | AI provider 인증 |
-| `AI_MODEL` | 설정값 | 배포별 모델 선택 |
-| `AI_BASE_URL` | 설정값 | 선택한 provider endpoint |
-| `AI_TIMEOUT_SECONDS` | 설정값 | 앱 수준 AI timeout, 기본 25 |
+| `GEMINI_API_KEY` | 비공개 | Gemini API 인증 |
+| `GEMINI_MODEL` | 설정값 | 배포별 Gemini 모델, 초기값 `gemini-3.8-flash` |
+| `GEMINI_TIMEOUT_SECONDS` | 설정값 | 앱 수준 Gemini timeout, 기본 25 |
 | `CONTEXT_TURNS` | 설정값 | 최근 문맥 개수, 기본 5 |
 | `APP_ENV` | 설정값 | local/preview/production 구분 |
 
@@ -284,93 +283,43 @@ README에는 반드시 아래 내용을 포함한다.
 
 ## 7. 3인 역할 분담
 
-팀원 실명은 확정 후 A/B/C를 교체한다. 작업량은 **팀장 A 40%, 팀원 B 30%, 팀원 C 30%**로 배분한다.
+팀장 A는 Supabase, Vercel, FastAPI, Gemini API와 최종 통합을 맡고, 팀원 B와 C는 페이지 단위로 프런트엔드를 나누어 소유한다.
 
-### 팀장 A - Backend/AI/Integration/Release (40%, 목표 14+ commits)
+상세한 작업 목록, 파일 소유권, 커밋 후보와 공유용 설명은 [TEAM_ROLES_AND_ROADMAP.md](TEAM_ROLES_AND_ROADMAP.md)를 기준으로 한다.
 
-소유 범위:
+| 담당 | 소유 범위 | 주요 결과물 | 목표 commit |
+|---|---|---|---:|
+| 팀장 A | 인프라·백엔드·AI·통합 | Supabase/RLS, Vercel, FastAPI API, Gemini, 로그, 테스트, 배포 | 14+ |
+| 팀원 B | 공통 UI·인증·기록 | `/login`, `/signup`, `/history`, App Layout, Auth Provider | 11+ |
+| 팀원 C | 채팅 UI | `/chat`, 메시지·입력·로딩·오류·재시도, 채팅 테스트 | 11+ |
+
+### 팀장 A - 인프라·백엔드·AI·통합
 
 - 아키텍처와 API 계약 최종 결정
-- FastAPI 앱/설정/의존성 골격
-- `/api/chat` orchestration
-- AI adapter, timeout, 오류 매핑
-- 최근 N개 문맥 구성
-- request-id와 구조화 로그
-- Vercel 설정, preview/production 배포
-- 통합 테스트와 최종 README/릴리스
+- Supabase Auth 기본 설정, schema, GRANT, RLS
+- FastAPI 앱, JWT 검증, 저장소와 보호 API
+- Google Gemini API adapter, timeout, 오류 매핑
+- 최근 N개 문맥 구성, request-id와 구조화 로그
+- Vercel Preview/Production 배포
+- 백엔드·통합 테스트와 최종 README/릴리스
 
-유의미한 커밋 후보:
+### 팀원 B - 공통 UI·인증·대화 기록
 
-1. Python 프로젝트와 FastAPI entrypoint
-2. settings 및 환경 변수 검증
-3. health/public-config endpoint
-4. API schema와 입력 검증
-5. AI client interface
-6. 실제 provider 구현
-7. timeout/오류 매핑
-8. 문맥 구성기
-9. chat orchestration
-10. request-id middleware
-11. 구조화 이벤트 로그
-12. AI 성공/실패 테스트
-13. Vercel 설정/smoke script
-14. 아키텍처/API/배포/릴리스 문서
+- 프런트 라우팅과 공통 App Layout
+- `/login`, `/signup`, `/history`
+- Supabase browser client, 세션, Protected Route
+- 입력 검증, 인증 오류, 로그아웃
+- 기록 화면의 로딩·빈 목록·오류 상태
+- 반응형·접근성·인증/기록 테스트
 
-### 팀원 B - Auth/Frontend/UX (30%, 목표 12+ commits)
+### 팀원 C - 채팅 페이지
 
-소유 범위:
-
-- React 화면 구조와 디자인
-- Supabase browser client와 session 상태
-- 회원가입/로그인/로그아웃
-- 비로그인/로그인 화면 분기
-- 채팅 메시지/입력/로딩/오류/재시도 UI
-- Bearer token을 포함한 API client
-- 내 대화 내역 화면
-- 반응형/접근성/프런트 테스트
-
-유의미한 커밋 후보:
-
-1. Vite/React/TypeScript 골격
-2. 공통 layout/theme
-3. Supabase browser client
-4. 회원가입 폼
-5. 로그인/로그아웃
-6. 인증 상태 guard
-7. 질문 입력 검증
-8. 메시지 목록/응답 렌더링
-9. API client/Bearer token
-10. 로딩/오류/재시도 UX
-11. 대화 히스토리 화면
-12. 접근성/반응형/프런트 테스트
-
-### 팀원 C - Database/Auth Backend/Traceability (30%, 목표 12+ commits)
-
-소유 범위:
-
-- Supabase 프로젝트와 migration
-- `chat_logs` 제약/인덱스/GRANT/RLS
-- FastAPI JWT 검증 의존성
-- Data API repository
-- 대화 저장, 최근 문맥 조회, 내 로그 조회
-- 다른 사용자 데이터 격리 테스트
-- `scripts/check_logs.sql`, ERD, DB 확인 가이드
-- DB 실패 처리와 로그
-
-유의미한 커밋 후보:
-
-1. Supabase 로컬 설정
-2. chat_logs migration
-3. 제약조건과 인덱스
-4. explicit GRANT
-5. SELECT RLS
-6. INSERT RLS
-7. JWT 검증 dependency
-8. chat 저장 repository
-9. 최근 문맥 조회 repository
-10. `/api/me/chats`
-11. RLS/DB 통합 테스트
-12. check SQL/ERD/DB 문서
+- `/chat` 전체 레이아웃
+- 사용자/AI 메시지와 질문 입력
+- Bearer Token을 포함한 FastAPI 호출
+- 로딩, 중복 전송 방지, timeout·실패·재시도 UI
+- `conversation_id`, 자동 스크롤, 반응형·접근성
+- 채팅 컴포넌트·통합 테스트
 
 ### 교차 리뷰
 
@@ -404,16 +353,16 @@ README에는 반드시 아래 내용을 포함한다.
 
 권장 PR 묶음:
 
-1. A1: project foundation/settings/API contract
-2. C1: schema/index/GRANT/RLS
-3. B1: auth UI/session/protected screen
-4. A2: AI/context/error handling
-5. C2: server auth/repository/history API
-6. B2: chat UI/API integration
-7. C3: DB verification/tests/docs
+1. A1: project foundation/Supabase/Vercel/API contract
+2. B1: frontend routing/common layout
+3. C1: chat page basic UI
+4. A2: FastAPI auth/schema/repository
+5. B2: login/signup/session/protected routes
+6. C2: chat API/loading/error integration
+7. A3: Gemini/context/timeout/logging
 8. B3: history/accessibility/frontend tests
-9. A3: logging/integration/deployment
-10. A4: final docs/release audit
+9. C3: chat responsive/accessibility/tests
+10. A4: backend tests/deployment/final docs
 11. Release: `develop` → `main`
 
 최종 감사:
@@ -426,96 +375,24 @@ git ls-files .env
 
 마지막 명령의 결과는 비어 있어야 한다.
 
-## 9. 2일 로드맵 - 권장
+## 9. 단계별 개발 로드맵
 
-### 1일차 09:00-10:00 - 계약과 협업 기반
+일차와 시간에 고정하지 않고 각 단계의 완료 게이트를 통과하면 다음 단계로 이동한다. 상세 실행 항목은 [TEAM_ROLES_AND_ROADMAP.md](TEAM_ROLES_AND_ROADMAP.md)를 기준으로 한다.
 
-- A: 독립 저장소, `main`/`develop`, Issue/PR template, Python 골격
-- B: 프런트 골격과 화면 계약
-- C: Supabase 프로젝트, schema/RLS/API 계약 검토
-- 전원: Git author 확인, 환경 변수 이름 확정, API/DB contract 동의
+| 단계 | 핵심 작업 | 완료 게이트 |
+|---|---|---|
+| 0. 계약·협업 기반 | Git author, 브랜치/PR 규칙, 화면/API/DB 계약, 환경 변수 확정 | 전원 기능 브랜치 작업 가능, 미결정 계약 없음 |
+| 1. 프로젝트 기반 | A: Supabase/Vercel/FastAPI, B: 라우팅/Layout, C: 목업 채팅 UI | `/api/health` 성공, 모든 화면 경로 렌더링, 첫 PR 생성 |
+| 2. 페이지 독립 구현 | B: 로그인/가입/기록, C: 채팅의 기본·로딩·오류 상태 | 실제 백엔드 없이 모든 화면 상태 확인 가능 |
+| 3. 백엔드·AI·DB | JWT, RLS, Gemini, 문맥, 저장/조회, 구조화 로그 | 비로그인 401, 데이터 격리, AI timeout 통제 |
+| 4. 수직 통합 | 로그인 → 질문 → Gemini → DB → 기록 조회 | Preview에서 전체 핵심 흐름 성공 |
+| 5. 안정성·테스트 | 입력, 429/timeout/5xx, DB 실패, RLS, 접근성, 비밀정보 검사 | 자동 테스트 통과, 오류 후 health 정상 |
+| 6. 문서·Git 감사 | README, API/ERD/배포/DB 확인, 개인별 작업, commit/PR 감사 | README 재현 가능, 전원 10+ commit, 문서와 Git 일치 |
+| 7. Production | release PR, 외부망 Smoke Test, 로그·DB 증빙 | 공개 URL과 GitHub 저장소 제출 가능 |
 
-완료 게이트:
+게이트 실패 시 새 기능 추가를 멈추고 현재 단계의 통합 문제를 먼저 해결한다.
 
-- `/api/health` 로컬 성공
-- migration 로컬/원격 적용 가능
-- 프런트 첫 화면 실행
-- 첫 PR 3개 생성
-
-### 1일차 10:00-13:00 - 인증/AI/DB 병렬 구현
-
-- A: settings, AI adapter, chat schema
-- B: 가입/로그인/로그아웃, auth state
-- C: migration, GRANT/RLS, JWT 검증, repository
-
-### 1일차 14:00-17:00 - 핵심 수직 흐름
-
-- A: 최근 5개 문맥 + AI timeout + 오류 매핑
-- B: 질문/메시지/로딩/오류 UI + Bearer API client
-- C: 저장/최근 문맥/내 로그 조회
-
-### 1일차 17:00-18:00 - 첫 Preview 통합
-
-- 로그인 → 질문 → 실제 AI 응답 → DB 저장 → 내 로그 조회
-- 비로그인 `/api/chat` 401
-- 두 사용자의 로그가 분리됨
-
-게이트 실패 시 새 기능을 멈추고 통합 문제를 우선 해결한다.
-
-### 2일차 09:00-11:00 - 운영 안정성
-
-- 빈 입력/길이 제한의 client+server 이중 검증
-- AI timeout/일반 실패 처리
-- DB 저장 실패 처리
-- 4종 필수 이벤트와 request_id 로그
-
-### 2일차 11:00-13:00 - 자동 검증
-
-- pytest 성공/401/422/timeout/upstream error/DB error
-- 사용자 A가 B의 로그를 읽지 못하는 RLS 테스트
-- 최근 N개 문맥 순서/한도 테스트
-- 프런트 auth/chat/error 테스트
-- `scripts/check_logs.sql` 검증
-
-### 2일차 14:00-16:00 - 문서와 재현성
-
-- README 전 항목 작성
-- API 예시, ERD, 환경 변수, 실행/배포, DB 확인 가이드
-- 팀 역할 문서는 예정이 아니라 실제 merged PR/commit 기준으로 갱신
-- 깨끗한 환경에서 문서 순서대로 설치/실행
-
-### 2일차 16:00-17:00 - Git/보안 감사
-
-- 각 팀원 non-merge 10+ 유의미한 commits
-- PR merge 기록과 feature branch 흔적
-- `.env`/키/비밀번호/Authorization 로그 노출 검사
-- 역할 문서와 Git history 대조
-
-### 2일차 17:00-18:00 - Production 릴리스
-
-- `develop` → `main` PR, B/C 승인
-- Production 배포
-- 외부망/시크릿 창에서 회원가입부터 로그 조회까지 smoke
-- Vercel Runtime Logs에서 필수 이벤트 확인
-- README에 GitHub URL/서비스 URL/검증 절차 기록
-
-## 10. 1일 압축안
-
-1일도 가능하지만, 빈 저장소에서 기능·문서·배포와 팀원별 10개 이상의 유의미한 commit을 동시에 만족해야 해 위험하다. 가능하면 2일안을 사용한다.
-
-| 시간 | 전원 공통/통합 | A | B | C |
-|---|---|---|---|---|
-| 09:00-09:45 | 계약, Issue, Git 설정 | FastAPI 골격 | UI 골격 | Supabase/schema |
-| 09:45-10:30 | 기반 PR merge | settings/health | auth client | migration/RLS |
-| 10:30-13:00 | 병렬 핵심 구현 | AI/chat/context | 가입/로그인/chat UI | JWT/repository/history |
-| 13:00-13:45 | 1차 리뷰/merge | 통합 지원 | 통합 지원 | 통합 지원 |
-| 13:45-16:30 | vertical flow | timeout/logging | 실제 API 연결 | 저장/조회/격리 |
-| 16:30-17:15 | Preview | deploy | UI smoke | DB 확인 |
-| 17:15-19:00 | 실패/E2E | backend tests | frontend tests | RLS/DB tests |
-| 19:00-20:30 | 문서/Git 감사 | README/release | UI/개인 요약 | ERD/SQL/개인 요약 |
-| 20:30-21:30 | Production | release | 외부 smoke | 로그/DB smoke |
-
-압축안에서 제외할 항목:
+MVP 완료 전 제외할 항목:
 
 - 관리자 대시보드
 - 스트리밍 답변
@@ -527,7 +404,7 @@ git ls-files .env
 
 제외할 수 없는 항목:
 
-- 실제 FastAPI AI 호출
+- 실제 FastAPI의 Gemini API 호출
 - 가입/로그인/서버 인증
 - DB 저장/사용자별 조회
 - 최근 N개 문맥
@@ -535,22 +412,22 @@ git ls-files .env
 - 공개 배포와 README
 - 팀원별 유의미한 commit 10회 이상과 PR 기록
 
-## 11. 테스트와 출시 게이트
+## 10. 테스트와 출시 게이트
 
 | 테스트 | 기대 결과 | 담당 |
 |---|---|---|
-| 비로그인 `/api/chat` | 401, AI 호출 없음 | C/A |
+| 비로그인 `/api/chat` | 401, AI 호출 없음 | A |
 | 회원가입/로그인/로그아웃 | 상태에 따라 화면과 기능 변경 | B |
-| 정상 질문 | 실제 AI 답변이 같은 화면에 표시 | A/B |
+| 정상 질문 | 실제 AI 답변이 같은 화면에 표시 | A/C |
 | 문맥 후속 질문 | 같은 대화의 최근 5개 Q/A 반영 | A/C |
-| DB 저장 | user/time/question/answer 확인 | C |
-| 사용자 격리 | A가 B 로그를 조회하지 못함 | C |
-| 빈 입력/2,000자 초과 | client와 server 모두 차단 | A/B |
+| DB 저장 | user/time/question/answer 확인 | A |
+| 사용자 격리 | A가 B 로그를 조회하지 못함 | A |
+| 빈 입력/2,000자 초과 | client와 server 모두 차단 | A/C |
 | AI timeout | 504 + 안전한 안내, health 정상 | A |
 | AI 일반 실패 | 502 + 실패 로그, health 정상 | A |
-| DB 실패 | 503 + `db_save_failure`, 성공으로 위장하지 않음 | A/C |
+| DB 실패 | 503 + `db_save_failure`, 성공으로 위장하지 않음 | A |
 | 필수 로그 | 요청/AI 시작/성공·실패/DB 결과 확인 | A |
-| 공개 URL | 외부망에서 전체 흐름 성공 | A/B |
+| 공개 URL | 외부망에서 전체 흐름 성공 | 전원 |
 | README 재현 | 새 환경에서 실행 가능 | 전원 |
 | 비밀정보 | 추적된 실제 `.env`/키 없음 | A |
 | Git | 각자 non-merge 10+, PR/branch 기록 존재 | 전원 |
@@ -566,7 +443,7 @@ git ls-files .env
 - 팀원 3명 모두 10개 이상의 유의미한 commit
 - 문서의 역할/개인별 작업과 실제 Git 이력 일치
 
-## 12. 리스크와 대응
+## 11. 리스크와 대응
 
 | 리스크 | 조기 신호 | 대응 |
 |---|---|---|
@@ -577,12 +454,14 @@ git ls-files .env
 | AI API가 Vercel timeout까지 대기 | 504 platform error | 앱 timeout 25초, Function 60초 |
 | service key 노출 | bundle/log에 secret 발견 | 브라우저에는 publishable만, secret은 server-only 또는 미사용 |
 | 가입 후 로그인 불가 | confirmation 메일/redirect 미도착 | 평가용 email confirmation 설정을 조기 확정하고 E2E 검증 |
-| commit 수 부족 | 2일차 오후 10개 미만 | 첫날부터 의미 단위 commit ledger 확인 |
+| commit 수 부족 | 통합 단계 전에 10개 미만 | 기반 단계부터 의미 단위 commit ledger 확인 |
 | squash로 commit 소실 | merge 후 author count 감소 | merge commit 방식 고정 |
 | 문서와 Git 불일치 | 역할표에 실제 PR이 없음 | 최종 문서는 merged PR 기준 갱신 |
 | 짧은 일정의 범위 폭주 | 스트리밍/관리자 기능부터 개발 | MVP 필수 게이트 전 선택 기능 금지 |
 
-## 13. 공식 기술 근거
+Vercel 관련 팀 논의의 세부 검증과 호스팅 변경 조건은 [TEAM_ROLES_AND_ROADMAP.md의 Vercel 관련 우려 검증 및 대응](TEAM_ROLES_AND_ROADMAP.md#6-vercel-관련-우려-검증-및-대응)을 기준으로 한다.
+
+## 12. 공식 기술 근거
 
 - [Vercel FastAPI 공식 문서](https://vercel.com/docs/frameworks/backend/fastapi)
 - [Vercel Python Runtime](https://vercel.com/docs/functions/runtimes/python)
@@ -593,11 +472,13 @@ git ls-files .env
 - [Supabase RLS](https://supabase.com/docs/guides/database/postgres/row-level-security)
 - [2026 Data API explicit GRANT 변경](https://supabase.com/changelog/45329-breaking-change-tables-not-exposed-to-data-and-graphql-api-automatically)
 - [Supabase migration](https://supabase.com/docs/guides/local-development/database-migrations)
+- [Google GenAI SDK](https://ai.google.dev/gemini-api/docs/libraries)
+- [Gemini 모델 목록](https://ai.google.dev/gemini-api/docs/models)
 
-## 14. 개발 착수 순서
+## 13. 개발 착수 순서
 
-1. 이 계획의 스택과 AI provider만 팀에서 최종 확인한다.
+1. 확정된 Vercel, FastAPI, Supabase, Gemini 스택을 전원에게 공유한다.
 2. `B7-1`을 독립 GitHub 저장소로 초기화한다.
 3. A/B/C를 실명으로 바꾸고 Git author를 확인한다.
-4. Supabase 프로젝트와 AI API key를 준비한다.
-5. 2일 로드맵의 1일차 09:00 작업부터 시작한다.
+4. Supabase 프로젝트와 Gemini API key를 준비한다.
+5. 단계별 로드맵의 단계 0부터 시작한다.
