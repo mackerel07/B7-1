@@ -1,5 +1,17 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ApiError, fetchMyChats, postChat, validateQuestion } from "./api";
+
+const { signOutMock } = vi.hoisted(() => ({ signOutMock: vi.fn() }));
+
+vi.mock("./supabase", () => ({
+  isSupabaseConfigured: () => true,
+  getSupabaseClient: () => ({ auth: { signOut: signOutMock } }),
+}));
+
+beforeEach(() => {
+  signOutMock.mockReset();
+  signOutMock.mockResolvedValue({ error: null });
+});
 
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -114,5 +126,55 @@ describe("validateQuestion", () => {
     const error = new ApiError("AUTH_REQUIRED", "로그인이 필요합니다.", 401, "r1");
     expect(error).toBeInstanceOf(Error);
     expect(error.code).toBe("AUTH_REQUIRED");
+  });
+});
+
+describe("401 전역 처리", () => {
+  function stubErrorResponse(status: number, code: string) {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: false,
+        status,
+        json: async () => ({
+          error: { code, message: "메시지", request_id: "r1" },
+        }),
+        headers: { get: () => null },
+      }),
+    );
+  }
+
+  it("401이면 세션을 정리한다", async () => {
+    stubErrorResponse(401, "AUTH_INVALID_TOKEN");
+
+    await expect(postChat({ accessToken: "expired", question: "안녕" })).rejects.toBeInstanceOf(
+      ApiError,
+    );
+    expect(signOutMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("기록 조회에서도 401이면 세션을 정리한다", async () => {
+    stubErrorResponse(401, "AUTH_REQUIRED");
+
+    await expect(fetchMyChats({ accessToken: "expired" })).rejects.toBeInstanceOf(ApiError);
+    expect(signOutMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("401이 아닌 오류에서는 세션을 유지한다", async () => {
+    stubErrorResponse(502, "AI_SERVICE_ERROR");
+
+    await expect(postChat({ accessToken: "token", question: "안녕" })).rejects.toBeInstanceOf(
+      ApiError,
+    );
+    expect(signOutMock).not.toHaveBeenCalled();
+  });
+
+  it("세션 정리가 실패해도 원래 오류를 그대로 던진다", async () => {
+    stubErrorResponse(401, "AUTH_INVALID_TOKEN");
+    signOutMock.mockRejectedValue(new Error("network down"));
+
+    await expect(
+      postChat({ accessToken: "expired", question: "안녕" }),
+    ).rejects.toMatchObject({ code: "AUTH_INVALID_TOKEN", status: 401 });
   });
 });

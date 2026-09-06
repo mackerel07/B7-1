@@ -4,7 +4,7 @@ import { ChatInput } from "../components/chat/ChatInput";
 import { ErrorBanner } from "../components/chat/ErrorBanner";
 import { MessageList, type ChatMessage } from "../components/chat/MessageList";
 import { useAuth } from "../contexts/AuthContext";
-import { postChat } from "../lib/api";
+import { ApiError, postChat } from "../lib/api";
 
 export default function ChatPage() {
   const { user, accessToken, signOut } = useAuth();
@@ -56,6 +56,11 @@ export default function ChatPage() {
       ]);
       setLastQuestion(null);
     } catch (err) {
+      // 401이면 lib/api.ts가 세션을 정리하고 ProtectedRoute가 로그인 화면으로
+      // 보낸다. 여기서는 곧 사라질 배너를 띄우지 않기만 하면 된다.
+      if (err instanceof ApiError && err.status === 401) {
+        return;
+      }
       setError(err);
     } finally {
       setPending(false);
