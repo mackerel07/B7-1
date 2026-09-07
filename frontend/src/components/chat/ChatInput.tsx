@@ -1,13 +1,21 @@
 import type { FormEvent } from "react";
 import { useState } from "react";
-import { validateQuestion } from "../../lib/api";
+import { QUESTION_MAX, validateQuestion } from "../../lib/api";
 
 type ChatInputProps = {
+  /** 전송 중은 아니지만 지금은 보낼 수 없는 상태 (예: 토큰 없음) */
   disabled?: boolean;
+  /** 전송 요청이 진행 중인 상태 */
+  pending?: boolean;
   onSubmit: (question: string) => Promise<void> | void;
 };
 
-export function ChatInput({ disabled = false, onSubmit }: ChatInputProps) {
+export function ChatInput({
+  disabled = false,
+  pending = false,
+  onSubmit,
+}: ChatInputProps) {
+  const locked = disabled || pending;
   const [value, setValue] = useState("");
   const [error, setError] = useState<string | null>(null);
 
@@ -25,7 +33,7 @@ export function ChatInput({ disabled = false, onSubmit }: ChatInputProps) {
     await onSubmit(question);
   }
 
-  const remaining = 2000 - value.trim().length;
+  const remaining = QUESTION_MAX - value.length;
 
   return (
     <form className="chat-input panel" onSubmit={handleSubmit} noValidate>
@@ -41,21 +49,18 @@ export function ChatInput({ disabled = false, onSubmit }: ChatInputProps) {
           setValue(event.target.value);
           if (error) setError(null);
         }}
-        placeholder="질문을 입력하세요 (최대 2,000자)"
-        disabled={disabled}
-        maxLength={2000}
+        placeholder={`질문을 입력하세요 (최대 ${QUESTION_MAX.toLocaleString("ko-KR")}자)`}
+        disabled={locked}
+        maxLength={QUESTION_MAX}
         aria-invalid={Boolean(error)}
         aria-describedby={error ? "chat-question-error chat-question-hint" : "chat-question-hint"}
       />
       <div className="chat-input__footer">
-        <p
-          id="chat-question-hint"
-          className={`field__hint ${remaining < 0 ? "field__error" : ""}`}
-        >
+        <p id="chat-question-hint" className="field__hint">
           {remaining.toLocaleString("ko-KR")}자 남음
         </p>
-        <button className="btn btn--primary" type="submit" disabled={disabled}>
-          {disabled ? "전송 중…" : "전송"}
+        <button className="btn btn--primary" type="submit" disabled={locked}>
+          {pending ? "전송 중…" : "전송"}
         </button>
       </div>
       {error ? (
