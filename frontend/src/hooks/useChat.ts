@@ -84,6 +84,14 @@ export function useChat(): UseChat {
   const [lastQuestion, setLastQuestion] = useState<string | null>(null);
   const confirmedRef = useRef<ChatMessage[]>(restored?.messages ?? []);
 
+  /**
+   * 전송이 진행 중인지 표시한다. pending 상태로는 부족하다.
+   * setPending(true)는 다시 그리라는 예약일 뿐이라, 같은 렌더의 클로저에서는
+   * pending이 계속 false다. send를 훅 밖으로 공개했으므로 호출자가 버튼을
+   * 잠가줄 것이라 가정하지 않고 여기서 막는다. ref는 즉시 반영된다.
+   */
+  const inFlightRef = useRef(false);
+
   function startNewConversation() {
     confirmedRef.current = [];
     writeStored(storageKey, null);
@@ -94,10 +102,11 @@ export function useChat(): UseChat {
   }
 
   async function sendQuestion(question: string, options?: { isRetry?: boolean }) {
-    if (!accessToken || pending) {
+    if (!accessToken || inFlightRef.current) {
       return;
     }
 
+    inFlightRef.current = true;
     setError(null);
     setLastQuestion(question);
     setPending(true);
@@ -147,6 +156,7 @@ export function useChat(): UseChat {
       }
       setError(err);
     } finally {
+      inFlightRef.current = false;
       setPending(false);
     }
   }
