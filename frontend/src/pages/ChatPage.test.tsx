@@ -73,6 +73,29 @@ describe("ChatPage 오류 표시", () => {
     expect(screen.getByRole("alert")).toHaveTextContent("AI_SERVICE_ERROR");
   });
 
+  it("입력을 고쳐야 하는 422에는 재시도 버튼을 노출하지 않는다", async () => {
+    stubFetch(422, "VALIDATION_ERROR", "요청 형식이 올바르지 않습니다.");
+    renderChatPage();
+
+    await askQuestion();
+
+    await waitFor(() =>
+      expect(screen.getByText("요청 형식이 올바르지 않습니다.")).toBeInTheDocument(),
+    );
+    expect(screen.queryByRole("button", { name: "다시 시도" })).not.toBeInTheDocument();
+  });
+
+  it("서버 측 일시적 실패에는 재시도 버튼을 노출한다", async () => {
+    stubFetch(504, "AI_TIMEOUT", "AI 응답 시간이 초과되었습니다.");
+    renderChatPage();
+
+    await askQuestion();
+
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "다시 시도" })).toBeInTheDocument(),
+    );
+  });
+
   it("실패해도 보낸 질문은 화면에 남는다", async () => {
     stubFetch(504, "AI_TIMEOUT", "AI 응답 시간이 초과되었습니다.");
     renderChatPage();

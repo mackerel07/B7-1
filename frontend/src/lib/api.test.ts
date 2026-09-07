@@ -1,5 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { ApiError, fetchMyChats, postChat, validateQuestion } from "./api";
+import {
+  ApiError,
+  fetchMyChats,
+  isRetryableError,
+  postChat,
+  validateQuestion,
+} from "./api";
 
 const { signOutMock } = vi.hoisted(() => ({ signOutMock: vi.fn() }));
 
@@ -176,5 +182,62 @@ describe("401 전역 처리", () => {
     await expect(
       postChat({ accessToken: "expired", question: "안녕" }),
     ).rejects.toMatchObject({ code: "AUTH_INVALID_TOKEN", status: 401 });
+  });
+});
+
+describe("isRetryableError", () => {
+  it("서버 측 일시적 실패(5xx)는 재시도를 허용한다", () => {
+    expect(isRetryableError(new ApiError("AI_SERVICE_ERROR", "", 502, "r1"))).toBe(true);
+    expect(isRetryableError(new ApiError("DATABASE_ERROR", "", 503, "r1"))).toBe(true);
+    expect(isRetryableError(new ApiError("AI_TIMEOUT", "", 504, "r1"))).toBe(true);
+  });
+
+  it("요청을 고쳐야 하는 실패(4xx)는 재시도를 막는다", () => {
+    expect(isRetryableError(new ApiError("VALIDATION_ERROR", "", 422, "r1"))).toBe(false);
+    expect(isRetryableError(new ApiError("AUTH_INVALID_TOKEN", "", 401, "r1"))).toBe(false);
+  });
+
+  it("계약에 없는 실패는 일시적일 수 있으므로 재시도를 허용한다", () => {
+    expect(isRetryableError(new ApiError("CLIENT_TIMEOUT", "", 0, "unknown"))).toBe(true);
+    expect(isRetryableError(new ApiError("NETWORK_ERROR", "", 0, "unknown"))).toBe(true);
+    expect(isRetryableError(new Error("알 수 없음"))).toBe(true);
+  });
+});
+
+describe("클라이언트 타임아웃", () => {
+  it("타임아웃되면 CLIENT_TIMEOUT으로 변환한다", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockRejectedValue(new DOMException("timed out", "TimeoutError")),
+    );
+
+    await expect(
+      postChat({ accessToken: "token", question: "안녕" }),
+    ).rejects.toMatchObject({
+      code: "CLIENT_TIMEOUT",
+      status: 0,
+      // 5xx와 달리 서버가 이미 처리했을 수 있음을 알린다
+      message: expect.stringContaining("이미 처리됐을 수 있으니"),
+    });
+  });
+
+  it("네트워크 단절은 한글 안내를 담은 NETWORK_ERROR로 변환한다", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new TypeError("Failed to fetch")));
+
+    await expect(
+      postChat({ accessToken: "token", question: "안녕" }),
+    ).rejects.toMatchObject({
+      code: "NETWORK_ERROR",
+      status: 0,
+      message: "네트워크에 연결할 수 없습니다. 연결 상태를 확인한 뒤 다시 시도해 주세요.",
+    });
+  });
+
+  it("알 수 없는 예외는 그대로 전달한다", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("boom")));
+
+    await expect(
+      postChat({ accessToken: "token", question: "안녕" }),
+    ).rejects.toThrowError("boom");
   });
 });

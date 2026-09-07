@@ -4,7 +4,7 @@ import { ChatInput } from "../components/chat/ChatInput";
 import { ErrorBanner } from "../components/chat/ErrorBanner";
 import { MessageList, type ChatMessage } from "../components/chat/MessageList";
 import { useAuth } from "../contexts/AuthContext";
-import { ApiError, postChat } from "../lib/api";
+import { ApiError, isRetryableError, postChat } from "../lib/api";
 
 export default function ChatPage() {
   const { user, accessToken, signOut } = useAuth();
@@ -85,7 +85,7 @@ export default function ChatPage() {
           <ErrorBanner
             error={error}
             onRetry={
-              lastQuestion
+              lastQuestion && isRetryableError(error)
                 ? () => {
                     void sendQuestion(lastQuestion, { isRetry: true });
                   }
