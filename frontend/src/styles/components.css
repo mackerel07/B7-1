@@ -342,6 +342,12 @@
   gap: 0.45rem;
 }
 
+/* grid 컨테이너라 그냥 두면 버튼이 가로 전체로 늘어난다 */
+.chat-page__header .btn {
+  justify-self: start;
+  margin-top: 0.35rem;
+}
+
 .chat-page__stage {
   min-height: min(52vh, 520px);
   max-height: 58vh;
