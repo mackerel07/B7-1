@@ -91,6 +91,6 @@
 | 401 | `AUTH_REQUIRED`, `AUTH_INVALID_TOKEN` | 로그인 화면으로 이동합니다. |
 | 422 | `VALIDATION_ERROR` | 입력 내용을 확인합니다. |
 | 502 | `AI_SERVICE_ERROR` | 재시도 안내를 표시합니다. |
+| 503 | `AI_RATE_LIMITED` | AI 요청 한도 초과 안내와 재시도 버튼을 표시합니다. |
 | 503 | `DATABASE_ERROR`, `DATABASE_UNAVAILABLE` | 잠시 후 재시도하도록 안내합니다. |
 | 504 | `AI_TIMEOUT` | 시간 초과 안내와 재시도 버튼을 표시합니다. |
-

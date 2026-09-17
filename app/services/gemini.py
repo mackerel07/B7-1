@@ -1,7 +1,7 @@
 import asyncio
 
 from google import genai
-from google.genai import types
+from google.genai import errors, types
 
 from app.core.config import Settings
 from app.core.errors import AppError
@@ -51,7 +51,7 @@ class GeminiService:
                     max_delay=2.0,
                     exp_base=2,
                     jitter=0.5,
-                    http_status_codes=[500, 502, 503, 504],
+                    http_status_codes=[429, 500, 502, 503, 504],
                 ),
             ),
         )
@@ -68,6 +68,21 @@ class GeminiService:
                         ),
                     ),
                 )
+        except errors.APIError as exc:
+            if exc.code == 429:
+                raise AppError(
+                    code="AI_RATE_LIMITED",
+                    message="현재 AI 요청이 많습니다. 잠시 후 다시 시도해 주세요.",
+                    status_code=503,
+                ) from exc
+            raise AppError(
+                code="AI_SERVICE_ERROR",
+                message=(
+                    "AI 서비스에서 정상적인 응답을 받지 못했습니다. "
+                    "잠시 후 다시 시도해 주세요."
+                ),
+                status_code=502,
+            ) from exc
         finally:
             await async_client.aclose()
 
