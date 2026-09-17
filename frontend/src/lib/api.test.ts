@@ -185,6 +185,54 @@ describe("401 전역 처리", () => {
   });
 });
 
+describe("AI 호출 실패 3종", () => {
+  function stubErrorResponse(status: number, code: string, message: string) {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: false,
+        status,
+        json: async () => ({ error: { code, message, request_id: "r1" } }),
+        headers: { get: () => null },
+      }),
+    );
+  }
+
+  async function failWith(status: number, code: string, message: string) {
+    stubErrorResponse(status, code, message);
+    return (await postChat({ accessToken: "token", question: "안녕" }).catch(
+      (e) => e,
+    )) as ApiError;
+  }
+
+  it("503 AI_RATE_LIMITED는 서버 문구 대신 고정 문구를 쓰고 재시도를 허용한다", async () => {
+    const error = await failWith(503, "AI_RATE_LIMITED", "Resource exhausted");
+
+    expect(error.message).toBe("너무 많은 요청으로 잠시 후 시도해 주세요.");
+    expect(isRetryableError(error)).toBe(true);
+  });
+
+  it("502 AI_SERVICE_ERROR는 서버 문구를 그대로 쓰고 재시도를 허용한다", async () => {
+    const error = await failWith(502, "AI_SERVICE_ERROR", "AI 답변을 생성하지 못했습니다.");
+
+    expect(error.message).toBe("AI 답변을 생성하지 못했습니다.");
+    expect(isRetryableError(error)).toBe(true);
+  });
+
+  it("504 AI_TIMEOUT은 서버 문구를 그대로 쓰고 재시도를 허용한다", async () => {
+    const error = await failWith(504, "AI_TIMEOUT", "AI 응답 시간이 초과되었습니다.");
+
+    expect(error.message).toBe("AI 응답 시간이 초과되었습니다.");
+    expect(isRetryableError(error)).toBe(true);
+  });
+
+  it("같은 503이라도 DB 장애는 호출량 초과 문구를 쓰지 않는다", async () => {
+    const error = await failWith(503, "DATABASE_ERROR", "대화 기록을 처리하지 못했습니다.");
+
+    expect(error.message).toBe("대화 기록을 처리하지 못했습니다.");
+  });
+});
+
 describe("isRetryableError", () => {
   it("서버 측 일시적 실패(5xx)는 재시도를 허용한다", () => {
     expect(isRetryableError(new ApiError("AI_SERVICE_ERROR", "", 502, "r1"))).toBe(true);
