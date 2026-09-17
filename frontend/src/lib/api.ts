@@ -89,6 +89,27 @@ async function clearSessionIfUnauthorized(response: Response): Promise<void> {
   }
 }
 
+/**
+ * AI 호출 실패 3종. 셋 다 요청 자체는 멀쩡하고 잠시 뒤에는 통하므로 재시도를 유도한다.
+ * status가 모두 500 이상이라 isRetryableError()가 그대로 재시도 버튼을 붙인다.
+ *
+ * | status | 코드 | 화면 문구 |
+ * |---:|---|---|
+ * | 502 | `AI_SERVICE_ERROR` | 서버 문구 (AI 호출이 실패한 서버 측 오류) |
+ * | 503 | `AI_RATE_LIMITED` | 아래 고정 문구 |
+ * | 504 | `AI_TIMEOUT` | 서버 문구 (응답 시간 초과) |
+ *
+ * `AI_RATE_LIMITED`만 문구를 고정한다. 호출량 초과는 사용자가 할 일이
+ * "잠시 뒤 다시 보내기" 하나뿐이라 서버가 어떤 문구를 주든 안내할 내용이 같다.
+ *
+ * status가 아니라 코드로 판단하는 이유는 503을 `DATABASE_ERROR`,
+ * `DATABASE_UNAVAILABLE`, `AUTH_SERVICE_UNAVAILABLE`도 함께 쓰기 때문이다.
+ * status로 갈랐다면 DB 장애에 "너무 많은 요청" 안내가 나간다.
+ */
+const CLIENT_MESSAGES: Record<string, string> = {
+  AI_RATE_LIMITED: "너무 많은 요청으로 잠시 후 시도해 주세요.",
+};
+
 /** 응답 본문을 ApiError로 옮긴다. 부수효과는 없다. */
 async function parseError(response: Response): Promise<ApiError> {
   let payload: ApiErrorBody | null = null;
@@ -98,9 +119,13 @@ async function parseError(response: Response): Promise<ApiError> {
     payload = null;
   }
 
+  const code = payload?.error?.code ?? "HTTP_ERROR";
+
   return new ApiError(
-    payload?.error?.code ?? "HTTP_ERROR",
-    payload?.error?.message ?? "요청을 처리하지 못했습니다. 잠시 후 다시 시도해 주세요.",
+    code,
+    CLIENT_MESSAGES[code] ??
+      payload?.error?.message ??
+      "요청을 처리하지 못했습니다. 잠시 후 다시 시도해 주세요.",
     response.status,
     payload?.error?.request_id ?? response.headers.get("x-request-id") ?? "unknown",
   );
@@ -109,7 +134,8 @@ async function parseError(response: Response): Promise<ApiError> {
 /**
  * 재시도 버튼을 보여줄지 판단한다. `docs/API_CONTRACT.md`의 오류 코드 표 기준.
  *
- * - 5xx (`AI_SERVICE_ERROR`, `DATABASE_*`, `AI_TIMEOUT`): 서버 측 일시적 실패이므로 재시도가 유효하다.
+ * - 5xx (`AI_SERVICE_ERROR`, `AI_RATE_LIMITED`, `AI_TIMEOUT`, `DATABASE_*`): 서버 측 일시적
+ *   실패이므로 재시도가 유효하다. AI 실패 3종은 CLIENT_MESSAGES 위 표를 참고.
  * - 4xx (`VALIDATION_ERROR`): 요청 자체를 고쳐야 하므로 같은 요청을 다시 보내도 결과가 같다.
  * - 401은 세션을 정리하고 로그인 화면으로 이동하므로 배너 자체를 띄우지 않는다.
  * - status 0은 응답을 아예 받지 못한 경우(타임아웃·네트워크 단절)로, 일시적일 수 있다.

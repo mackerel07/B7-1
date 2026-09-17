@@ -127,6 +127,38 @@ describe("ChatPage 오류 표시", () => {
     );
   });
 
+  it("503 AI_RATE_LIMITED는 호출량 초과 문구와 재시도 버튼을 보여준다", async () => {
+    stubFetch(503, "AI_RATE_LIMITED", "Resource exhausted");
+    renderChatPage();
+
+    await askQuestion();
+
+    await waitFor(() =>
+      expect(screen.getByText("너무 많은 요청으로 잠시 후 시도해 주세요.")).toBeInTheDocument(),
+    );
+    expect(screen.getByRole("alert")).toHaveTextContent("AI_RATE_LIMITED");
+    expect(screen.getByRole("button", { name: "다시 시도" })).toBeInTheDocument();
+  });
+
+  it("재시도하면 같은 질문을 한 번만 다시 보낸다", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(errorResponse(503, "AI_RATE_LIMITED", "Resource exhausted"))
+      .mockResolvedValueOnce(chatResponse("CONV-1", "1", "답변1"));
+    vi.stubGlobal("fetch", fetchMock);
+    renderChatPage();
+
+    await askQuestion("붐빌 때 보낸 질문");
+    const retry = await screen.findByRole("button", { name: "다시 시도" });
+    await userEvent.setup().click(retry);
+
+    await waitFor(() => expect(screen.getByText("답변1")).toBeInTheDocument());
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(JSON.parse(fetchMock.mock.calls[1][1].body).question).toBe("붐빌 때 보낸 질문");
+    // 재시도는 질문을 다시 그리지 않는다
+    expect(screen.getAllByText("붐빌 때 보낸 질문")).toHaveLength(1);
+  });
+
   it("실패해도 보낸 질문은 화면에 남는다", async () => {
     stubFetch(504, "AI_TIMEOUT", "AI 응답 시간이 초과되었습니다.");
     renderChatPage();
